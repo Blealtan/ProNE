@@ -9,8 +9,9 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <gflags/gflags.h>
-#include <redsvd/redsvd.hpp>
 #include <boost/math/special_functions/bessel.hpp>
+
+#include "redsvd/redsvd.hpp"
 
 using namespace Eigen;
 using namespace REDSVD;
