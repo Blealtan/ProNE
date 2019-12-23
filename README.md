@@ -18,7 +18,7 @@ Accepted to IJCAI 2019 Research Track!
 Clone this repo.
 
 ```bash
-git clone https://github.com/lykeven/ProNE
+git clone https://github.com/cenyk1230/ProNE
 cd ProNE
 ```
 
