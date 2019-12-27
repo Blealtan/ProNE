@@ -1,10 +1,10 @@
-/* 
+/*
  *  Copyright (c) 2010 Daisuke Okanohara
- * 
+ *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
  *   are met:
- * 
+ *
  *   1. Redistributions of source code must retain the above Copyright
  *      notice, this list of conditions and the following disclaimer.
  *
@@ -22,81 +22,72 @@
 
 #define EIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET
 
-#include <vector>
-#include <eigen3/Eigen/Sparse>
+#include "util.hpp"
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Eigenvalues>
-#include "util.hpp"
+#include <eigen3/Eigen/Sparse>
+#include <vector>
 
 namespace REDSVD {
 
 class RedSVD {
 public:
-  RedSVD(){}
+  RedSVD() {}
 
-  template <class Mat>
-  RedSVD(Mat& A){
+  template <class Mat> RedSVD(Mat &A) {
     int r = (A.rows() < A.cols()) ? A.rows() : A.cols();
     run(A, r);
   }
 
-  template <class Mat>
-  RedSVD(Mat& A, const int rank){
-    run(A, rank);
-  }
+  template <class Mat> RedSVD(Mat &A, const int rank) { run(A, rank); }
 
-  template <class Mat>
-  void run(Mat& A, const int rank){
-    if (A.cols() == 0 || A.rows() == 0) return;
+  template <class Mat> void run(Mat &A, const int rank) {
+    if (A.cols() == 0 || A.rows() == 0)
+      return;
     int r = (rank < A.cols()) ? rank : A.cols();
     r = (r < A.rows()) ? r : A.rows();
-    
+
     // Gaussian Random Matrix for A^T
     Eigen::MatrixXf O(A.rows(), r);
     Util::sampleGaussianMat(O);
-    
+
     // Compute Sample Matrix of A^T
     Eigen::MatrixXf Y = A.transpose() * O;
-    
+
     // Orthonormalize Y
     Util::processGramSchmidt(Y);
 
     // Range(B) = Range(A^T)
     Eigen::MatrixXf B = A * Y;
-    
+
     // Gaussian Random Matrix
     Eigen::MatrixXf P(B.cols(), r);
     Util::sampleGaussianMat(P);
-    
+
     // Compute Sample Matrix of B
     Eigen::MatrixXf Z = B * P;
-    
+
     // Orthonormalize Z
     Util::processGramSchmidt(Z);
-    
+
     // Range(C) = Range(B)
-    Eigen::MatrixXf C = Z.transpose() * B; 
-    
-    Eigen::JacobiSVD<Eigen::MatrixXf> svdOfC(C, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    
+    Eigen::MatrixXf C = Z.transpose() * B;
+
+    Eigen::JacobiSVD<Eigen::MatrixXf> svdOfC(C, Eigen::ComputeThinU |
+                                                    Eigen::ComputeThinV);
+
     // C = USV^T
     // A = Z * U * S * V^T * Y^T()
     matU_ = Z * svdOfC.matrixU();
     matS_ = svdOfC.singularValues();
     matV_ = Y * svdOfC.matrixV();
   }
-  
-  const Eigen::MatrixXf& matrixU() const {
-    return matU_;
-  }
 
-  const Eigen::VectorXf& singularValues() const {
-    return matS_;
-  }
+  const Eigen::MatrixXf &matrixU() const { return matU_; }
 
-  const Eigen::MatrixXf& matrixV() const {
-    return matV_;
-  }
+  const Eigen::VectorXf &singularValues() const { return matS_; }
+
+  const Eigen::MatrixXf &matrixV() const { return matV_; }
 
 private:
   Eigen::MatrixXf matU_;
@@ -106,43 +97,36 @@ private:
 
 class RedSymEigen {
 public:
-  RedSymEigen(){}
+  RedSymEigen() {}
 
-  template <class Mat>
-  RedSymEigen(Mat& A, const int rank){
-    run(A, rank);
-  }  
+  template <class Mat> RedSymEigen(Mat &A, const int rank) { run(A, rank); }
 
-  template <class Mat>
-  void run(Mat& A, const int rank){
-    if (A.cols() == 0 || A.rows() == 0) return;
+  template <class Mat> void run(Mat &A, const int rank) {
+    if (A.cols() == 0 || A.rows() == 0)
+      return;
     int r = (rank < A.cols()) ? rank : A.cols();
     r = (r < A.rows()) ? r : A.rows();
-    
+
     // Gaussian Random Matrix
     Eigen::MatrixXf O(A.rows(), r);
     Util::sampleGaussianMat(O);
-    
+
     // Compute Sample Matrix of A
     Eigen::MatrixXf Y = A.transpose() * O;
-    
+
     // Orthonormalize Y
     Util::processGramSchmidt(Y);
 
     Eigen::MatrixXf B = Y.transpose() * A * Y;
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> eigenOfB(B);
-    
+
     eigenValues_ = eigenOfB.eigenvalues();
     eigenVectors_ = Y * eigenOfB.eigenvectors();
   }
-  
-  const Eigen::MatrixXf& eigenVectors() const {
-    return eigenVectors_;
-  }
 
-  const Eigen::VectorXf& eigenValues() const {
-    return eigenValues_;
-  }
+  const Eigen::MatrixXf &eigenVectors() const { return eigenVectors_; }
+
+  const Eigen::VectorXf &eigenValues() const { return eigenValues_; }
 
 private:
   Eigen::VectorXf eigenValues_;
@@ -151,35 +135,29 @@ private:
 
 class RedPCA {
 public:
-  RedPCA(){}
+  RedPCA() {}
 
-  template <class Mat>
-  RedPCA(const Mat& A, const int rank) {
-    run(A, rank);
-  }
+  template <class Mat> RedPCA(const Mat &A, const int rank) { run(A, rank); }
 
-  template <class Mat> 
-  void run(const Mat& A, const int rank) {
+  template <class Mat> void run(const Mat &A, const int rank) {
     RedSVD redsvd;
     redsvd.run(A, rank);
-    const Eigen::VectorXf& S = redsvd.singularValues();
+    const Eigen::VectorXf &S = redsvd.singularValues();
     principalComponents_ = redsvd.matrixV();
-    scores_              = redsvd.matrixU() * S.asDiagonal();
+    scores_ = redsvd.matrixU() * S.asDiagonal();
   }
 
-  const Eigen::MatrixXf& principalComponents() const {
+  const Eigen::MatrixXf &principalComponents() const {
     return principalComponents_;
   }
 
-  const Eigen::MatrixXf& scores() const {
-    return scores_;
-  }
+  const Eigen::MatrixXf &scores() const { return scores_; }
 
- private:
+private:
   Eigen::MatrixXf principalComponents_;
   Eigen::MatrixXf scores_;
 };
 
-}
+} // namespace REDSVD
 
 #endif // REDSVD_HPP__
